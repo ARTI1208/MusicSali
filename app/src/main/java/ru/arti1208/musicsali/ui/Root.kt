@@ -35,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -97,15 +98,10 @@ fun Root(instruments: List<Instrument>, viewModel: ScreenViewModel) {
             hasEnabledLayerState,
             isRecording,
             { viewModel.addLayer(it) },
+            { viewModel.recordMic() },
             { viewModel.recordOrShare() },
             { viewModel.playPauseAll() },
         )
-    }
-}
-
-fun MutableState<ScreenState>.addLayer(sample: Sample, name: String) {
-    value = value.let { state ->
-        state.copy(layers = state.layers + LayerState(Layer(sample, name = name)))
     }
 }
 
@@ -197,7 +193,7 @@ fun VolumeAndSpeed(
         Slider(
             value = currentLayerState.speed,
             onValueChange = updateSpeed,
-            valueRange = 0.1f..10f,
+            valueRange = 0.1f..5f,
         )
     }
 }
@@ -237,6 +233,7 @@ fun Controls(
     hasEnabledLayer: State<Boolean>,
     isRecording: State<Boolean>,
     addLayer: (Layer) -> Unit,
+    recordMic: () -> Unit,
     recordOrStopTrack: () -> Unit,
     playPause: () -> Unit,
 ) {
@@ -246,7 +243,7 @@ fun Controls(
         modifier = Modifier.fillMaxWidth(),
     ) {
         val recorder = remember {
-            mutableStateOf<RecordingData>(null to "")
+                mutableStateOf<RecordingData>(null to "")
         }
 
         val launcher = rememberLauncherForActivityResult(
@@ -264,7 +261,14 @@ fun Controls(
         val recordedSample = remember { mutableStateOf<Sample?>(null) }
         val layerName = remember { mutableStateOf("") }
 
-        Button(onClick = {
+        val isMicRecording = remember {
+            derivedStateOf { recorder.value.first != null }
+        }
+
+        Button(
+            enabled = !state.value.isPlaying && !isRecording.value,
+            onClick = {
+            recordMic()
             val mediaRecorder = recorder.value.first
             if (mediaRecorder != null) {
                 val path = recorder.value.second
@@ -291,11 +295,18 @@ fun Controls(
 
         AddLayerDialog(sample = recordedSample, name = layerName, addLayer = addLayer)
 
-        Button(enabled = hasEnabledLayer.value, onClick = recordOrStopTrack) {
+        Button(
+            enabled = hasEnabledLayer.value && !state.value.isPlaying && !isMicRecording.value,
+            onClick = recordOrStopTrack,
+        ) {
             Text(text = if (isRecording.value) "Share" else "Record track")
         }
 
-        PlayButton(state.value.isPlaying, enabled = hasEnabledLayer.value, playPause)
+        PlayButton(
+            state.value.isPlaying,
+            enabled = hasEnabledLayer.value && !isMicRecording.value && !isRecording.value,
+            playPause,
+        )
     }
 }
 

@@ -1,13 +1,11 @@
 package ru.arti1208.musicsali
 
-import android.content.Intent
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
-import android.net.Uri
+import android.media.MediaRecorder
 import android.util.Log
-import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
@@ -17,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ru.arti1208.musicsali.models.FileSample
@@ -26,12 +25,12 @@ import ru.arti1208.musicsali.models.ScreenState
 import java.io.File
 import java.io.FileOutputStream
 
-class ScreenViewModel: ViewModel() {
+typealias RecordingData = Pair<MediaRecorder?, String>
 
-    private lateinit var saliPlayer: SaliPlayer2
-    private lateinit var audioMixer: AudioMixer
-
-
+class ScreenViewModel(
+    private val saliPlayer: SaliPlayer,
+    private val audioMixer: AudioMixer,
+) : ViewModel() {
 
     private val layerStates = mutableMapOf<Layer, MutableStateFlow<LayerState>>()
     private val screenState = MutableStateFlow<ScreenState>(ScreenState(emptyList()))
@@ -53,8 +52,11 @@ class ScreenViewModel: ViewModel() {
     private val _isRecording = MutableStateFlow(false)
     val isRecording = _isRecording.asStateFlow()
 
-    private val _intent = MutableSharedFlow<List<ByteArray>>()
-    val intent = _intent.asSharedFlow()
+    private val micRecordingData = MutableStateFlow<RecordingData>(null to "")
+    val isRecordingMic = micRecordingData.map { it.first != null }
+
+    private val _fileIntent = MutableSharedFlow<File>()
+    val fileIntent = _fileIntent.asSharedFlow()
 
     fun selectLayer(index: Int) {
         _selectedLayerIndex.tryEmit(index)
@@ -63,16 +65,6 @@ class ScreenViewModel: ViewModel() {
 
     private val isAnyPlaying
         get() = screenState.value.isPlaying || getPlayingLayer() != null
-
-    private var mixedAudioTrack: AudioTrack? = null
-
-    fun setPlayer(saliPlayer2: SaliPlayer2) {
-        saliPlayer = saliPlayer2
-    }
-
-    fun setMixer(mixer: AudioMixer) {
-        audioMixer = mixer
-    }
 
     fun playPauseAll() {
         playPause(
@@ -85,6 +77,7 @@ class ScreenViewModel: ViewModel() {
 
     fun pauseAll() {
         saliPlayer.stopPlaying()
+        _isRecording.tryEmit(false)
     }
 
     private inline fun playPause(
@@ -192,10 +185,30 @@ class ScreenViewModel: ViewModel() {
         saliPlayer.updateLayers(layerStates.map { (k, v) -> k to v.value }, checkLayerEnabled)
     }
 
+    fun recordMic() {
+//        val recordingData = micRecordingData.value
+//        val mediaRecorder = recordingData.first
+//        if (mediaRecorder != null) {
+//            val path = recordingData.second
+//            mediaRecorder.apply {
+//                stop()
+//                release()
+//            }
+//
+//            micRecordingData.tryEmit(null to "")
+//
+//            layerName.value = File(path).nameWithoutExtension
+//            recordedSample.value = FileSample(path)
+//        } else {
+//            when (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO)) {
+//                PackageManager.PERMISSION_GRANTED -> startRecord(recorder)
+//                else -> launcher.launch(Manifest.permission.RECORD_AUDIO)
+//            }
+//        }
+    }
+
     fun recordOrShare() {
-        if (mixedAudioTrack != null) {
-            mixedAudioTrack?.release()
-            mixedAudioTrack = null
+        if (isRecording.value) {
             _isRecording.tryEmit(false)
             return
         }
@@ -217,30 +230,42 @@ class ScreenViewModel: ViewModel() {
             AudioManager.AUDIO_SESSION_ID_GENERATE,
         )
 
-        mixedAudioTrack = audioTrack
-
         audioTrack.play()
 
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                val result = audioMixer.mixSamples(layerStates.entries.mapNotNull { (k, v) -> (k.sample to v.value).takeIf { v.value.enabled } })
+//                val result = audioMixer.mixSamples(
+//                    layerStates.entries.mapNotNull { (k, v) ->
+//                        (k.sample to v.value).takeIf { v.value.enabled }
+//                    }
+//                )
 
-                val listened = mutableListOf<ByteArray>()
+                val result = audioMixer.mixSamples(layerStates.toMap())
+
+                val file = File.createTempFile("saliPcm", null)
+                val outputStream = FileOutputStream(file)
 
                 result.collect { data ->
+                    Log.d("ffrefref", "collect")
                     runCatching {
-                        audioTrack.write(data, 0, data.size)
-                        listened += data
-                    }.getOrElse {
+                        if (!isRecording.value) {
+                            Log.d("ffrefref", "not recording, throw")
+                            throw IllegalStateException()
+                        }
 
-                        _intent.emit(listened)
+                        audioTrack.write(data, 0, data.size)
+                        outputStream.write(data)
+                    }.getOrElse {
 
                         Log.d("ffrefref", "fnished playing")
 
+                        runCatching { outputStream.close() }
                         runCatching {
+                            audioTrack.stop()
                             audioTrack.release()
-                            mixedAudioTrack = null
-                        }.getOrNull()
+                        }
+
+                        _fileIntent.emit(file)
 
                         throw CancellationException()
                     }

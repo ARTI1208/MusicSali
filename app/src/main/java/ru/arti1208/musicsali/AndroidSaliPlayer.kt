@@ -3,16 +3,15 @@ package ru.arti1208.musicsali
 import android.content.res.AssetManager
 import android.media.MediaPlayer
 import android.media.MediaPlayer.OnCompletionListener
-import android.media.SoundPool
 import android.util.Log
 import ru.arti1208.musicsali.models.AssetSample
 import ru.arti1208.musicsali.models.FileSample
 import ru.arti1208.musicsali.models.Layer
 import ru.arti1208.musicsali.models.LayerState
 
-class AndroidSaliPlayer2(
+class AndroidSaliPlayer(
     private val assetManager: AssetManager,
-) : SaliPlayer2 {
+) : SaliPlayer {
 
     private val currentData = mutableMapOf<Layer, MediaPlayer>()
     private var onStateChanged: (PlayerState) -> Unit = {}
