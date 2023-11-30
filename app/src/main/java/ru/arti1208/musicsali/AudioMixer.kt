@@ -10,6 +10,6 @@ interface AudioMixer {
     /**
      * Return PCM bytes
      */
-    fun mixSamples(data: Map<Layer, StateFlow<LayerState>>): Flow<ByteArray>
+    suspend fun mixSamples(data: Map<Layer, StateFlow<LayerState>>): Flow<ByteArray>
 
 }
