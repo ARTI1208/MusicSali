@@ -8,6 +8,8 @@ import ru.arti1208.musicsali.models.AssetSample
 import ru.arti1208.musicsali.models.FileSample
 import ru.arti1208.musicsali.models.Layer
 import ru.arti1208.musicsali.models.LayerState
+import java.util.Timer
+import java.util.TimerTask
 
 class AndroidSaliPlayer(
     private val assetManager: AssetManager,
@@ -26,13 +28,14 @@ class AndroidSaliPlayer(
     override fun playLayers(
         layers: List<Pair<Layer, LayerState>>,
         checkLayerEnabled: Boolean,
-        onStateChanged: (PlayerState) -> Unit
+        onStateChanged: (PlayerState) -> Unit,
     ) {
         stopPlaying()
         this.onStateChanged = onStateChanged
         layers.forEach { (layer, state) ->
             prepareLayer(layer, state, checkLayerEnabled).apply {
                 currentData[layer] = this
+
 
                 setOnCompletionListener(createCompletionListener(layer))
                 start()

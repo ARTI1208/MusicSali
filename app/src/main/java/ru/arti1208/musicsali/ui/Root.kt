@@ -1,6 +1,8 @@
 package ru.arti1208.musicsali.ui
 
 import android.Manifest
+import android.app.Activity
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.MediaRecorder
 import android.util.Log
@@ -49,6 +51,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import ru.arti1208.musicsali.R
 import ru.arti1208.musicsali.ScreenViewModel
+import ru.arti1208.musicsali.VisualizeActivity
 import ru.arti1208.musicsali.models.FileSample
 import ru.arti1208.musicsali.models.Instrument
 import ru.arti1208.musicsali.models.Layer
@@ -102,6 +105,20 @@ fun Root(instruments: List<Instrument>, viewModel: ScreenViewModel) {
             { viewModel.recordOrShare() },
             { viewModel.playPauseAll() },
         )
+
+        val activity = LocalContext.current as Activity
+
+        Button(
+            enabled = hasEnabledLayerState.value,
+            onClick = {
+            val intent = Intent(activity, VisualizeActivity::class.java)
+            val snapshot = viewModel.layerStatesSnapshot()
+            intent.putExtra("states", snapshot.values.toTypedArray())
+            intent.putExtra("layers", snapshot.keys.toTypedArray())
+            activity.startActivity(intent)
+        }) {
+            Text(text = "Visualize")
+        }
     }
 }
 
@@ -346,7 +363,12 @@ fun LayersList(
     LazyColumn {
         itemsIndexed(layers.value) { index, layer ->
             val layerState = viewModel.getLayerState(layer)!!.collectAsState()
-            LayerRow(layer, layerState.value, modifier = Modifier
+            val textColor = if (selectedLayerIndex.value == index) {
+                Color.Black
+            } else {
+                Color.White
+            }
+            LayerRow(layer, layerState.value, textColor = textColor,  modifier = Modifier
                 .clickable {
                     viewModel.selectLayer(index)
                 }
@@ -374,12 +396,13 @@ fun LayerRow(
     layer: Layer,
     layerState: LayerState,
     modifier: Modifier,
+    textColor: Color,
     playPause: () -> Unit,
     flipEnabled: () -> Unit,
     onRemove: () -> Unit,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
-        Text(text = layer.name, modifier = Modifier.fillMaxWidth())
+        Text(text = layer.name, modifier = Modifier.fillMaxWidth(), color = textColor)
         Row(
             horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
             modifier = Modifier.fillMaxWidth(),

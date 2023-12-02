@@ -27,6 +27,13 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".VisualizeActivity"
+            android:exported="false"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.MusicSali">
+        </activity>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"

@@ -274,7 +274,11 @@ class ScreenViewModel(
         }
     }
 
+    fun layerStatesSnapshot(): Map<Layer, LayerState> {
+        return layerStates.mapValues { it.value.value }
+    }
+
     companion object {
-        private val DEFAULT_LAYER_STATE = LayerState(Layer(FileSample("")))
+        private val DEFAULT_LAYER_STATE = LayerState()
     }
 }
