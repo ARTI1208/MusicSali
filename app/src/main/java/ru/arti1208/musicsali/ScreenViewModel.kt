@@ -1,25 +1,13 @@
 package ru.arti1208.musicsali
 
-import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
 import android.media.MediaRecorder
 import android.util.Log
-import androidx.annotation.OptIn
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.media3.common.C
-import androidx.media3.common.MediaItem
-import androidx.media3.common.audio.AudioProcessor
-import androidx.media3.common.audio.SonicAudioProcessor
-import androidx.media3.common.util.UnstableApi
-import androidx.media3.transformer.Composition
-import androidx.media3.transformer.EditedMediaItem
-import androidx.media3.transformer.Effects
-import androidx.media3.transformer.ExportResult
-import androidx.media3.transformer.Transformer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -195,12 +183,6 @@ class ScreenViewModel(
         stateFlow.tryEmit(stateFlow.value.transform())
 
         saliPlayer.updateLayers(layerStates.map { (k, v) -> k to v.value }, checkLayerEnabled)
-    }
-
-    @OptIn(UnstableApi::class)
-    fun transform(context: Context, layerState: LayerState) {
-
-
     }
 
     fun recordMic() {
